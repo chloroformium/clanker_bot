@@ -90,7 +90,7 @@ bot.on('text', async ctx => {
     const userMessage = ctx.message.text;
     const userId = String(ctx.from.id);
 
-       await saveUserMessage({ userId, text: userMessage });
+    await saveUserMessage({ userId, text: userMessage });
 
     const messages = await buildContext(userId, userMessage);
 
@@ -119,7 +119,7 @@ bot.on('text', async ctx => {
       return;
     }
 
-     await saveBotResponse({ userId, response: botReply });
+    await saveBotResponse({ userId, response: botReply });
 
     console.log(`[${now()}] sending the answer (${ctx.from.username || ctx.from.id})`);
     await ctx.reply(botReply);
