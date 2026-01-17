@@ -136,6 +136,7 @@ bot
   .catch(async (err) => {
     console.log("an error occured, tryin' to establish polling connection");
 
+<<<<<<< HEAD
     try {
       await bot.launch();
       console.log('bot launched via polling');
@@ -146,3 +147,10 @@ bot
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
+=======
+
+app.use(bot.webhookCallback('/api/webhook'));
+app.get('/', (_, res) => res.send('bot is running via webhook'));
+
+export default app;
+>>>>>>> bccfe0f (i need a beer)
