@@ -1,11 +1,20 @@
 import dotenv from "dotenv";
 dotenv.config();
-import { Telegraf} from "telegraf";
+
+import express from "express";
+import { Telegraf } from "telegraf";
 import OpenAI from "openai";
-import sql, { saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory } from './db.js';
+import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory} from './db.js';
+
+const port = process.env.PORT || 3000;
+
+process.on('uncaughtException', e => console.error('uncaughtException', e));
+process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
 console.log("USING DB URL:", process.env.SUPABASE_CONNECTION_STRING);
 
+const app = express();
+app.use(express.json());
 
 const openrouter = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY,
@@ -22,10 +31,7 @@ const now = () => new Date().toISOString();
 async function buildContext(userId, userMessage) {
   const rows = await getUserHistory(userId, CONTEXT_LIMIT);
 
-  const messages = [
-    { role: 'system', content: systemPrompt }
-  ];
-
+  const messages = [{ role: 'system', content: systemPrompt }];
   let totalChars = (systemPrompt || '').length;
 
   for (const row of rows) {
@@ -36,7 +42,7 @@ async function buildContext(userId, userMessage) {
       totalChars += len;
     }
 
-    const botText = row.response ?? row.response;
+    const botText = row.response;
     if (botText) {
       const len = botText.length;
       if (totalChars + len > CHARS_LIMIT) break;
@@ -58,7 +64,7 @@ bot.command('clear', async ctx => {
     const userId = String(ctx.from.id);
     await clearUserHistory(userId);
     await ctx.reply('the context was cleared');
-  } catch (err) {
+  } catch {
     await ctx.reply('context cleaning error');
   }
 });
@@ -69,13 +75,12 @@ bot.telegram.setMyCommands([
   { command: 'clear', description: 'clear context' },
 ]);
 
-
 bot.hears('clear', async ctx => {
   try {
     const userId = String(ctx.from.id);
     await clearUserHistory(userId);
     await ctx.reply('the context was cleared');
-  } catch (err) {
+  } catch {
     await ctx.reply('context cleaning error');
   }
 });
@@ -100,7 +105,7 @@ bot.on('text', async ctx => {
     if (choice) {
       const content = choice.message?.content;
       if (Array.isArray(content)) {
-        botReply = content.map(c => (typeof c === 'string' ? c : (c?.text || ''))).join('');
+        botReply = content.map(c => typeof c === 'string' ? c : (c?.text || '')).join('');
       } else if (typeof content === 'string') {
         botReply = content;
       } else if (content && typeof content === 'object') {
@@ -121,36 +126,14 @@ bot.on('text', async ctx => {
 
   } catch (err) {
     console.error(`[${now()}] request processing error`, err);
-    try { await ctx.reply('request processing error'); } catch (e) {}
+    try { await ctx.reply('request processing error'); } catch {}
   }
 });
 
-bot
-  .launch({
-    webhook: {
-      domain: process.env.BOT_WEBHOOK_DOMAIN,
-      port: 3000,
-    },
-  })
-  .then(() => console.log('bot launched via webhook'))
-  .catch(async (err) => {
-    console.log("an error occured, tryin' to establish polling connection");
+const webhookPath = '/webhook';
 
-<<<<<<< HEAD
-    try {
-      await bot.launch();
-      console.log('bot launched via polling');
-    } catch (pollingErr) {
-      console.error('polling lauch failed too :)', pollingErr);
-    }
-  });
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-=======
 
 app.use(bot.webhookCallback('/api/webhook'));
 app.get('/', (_, res) => res.send('bot is running via webhook'));
 
 export default app;
->>>>>>> bccfe0f (i need a beer)
