@@ -51,17 +51,11 @@ const messages = [{ role: 'system', content: systemPrompt }];
     }
   }
   if (imageUrl) {
-    messages.push({
-      role: 'user',
-      content: [
-        { type: 'text', text: userMessage || "What is depicted in this photo?" },
-        { type: 'image_url', image_url: { url: imageUrl } }
-      ]
-    });
+    const text = `${userMessage || "What is depicted in this photo?"}\nImage URL: ${imageUrl}`;
+    messages.push({ role: 'user', content: text });
   } else {
     messages.push({ role: 'user', content: userMessage });
   }
-
   return messages;
 }
 
