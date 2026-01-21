@@ -66,7 +66,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
     const messages = await buildContext(userId, userText, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: 'nvidia/nemotron-nano-12b-v2-vl:free', messages, temperature: 0.5
+      model: 'google/gemini-2.0-flash-exp:free', messages, temperature: 0.5
     });
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
