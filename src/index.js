@@ -26,7 +26,7 @@ const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
 const CONTEXT_LIMIT = 30;
 const CHARS_LIMIT = 9999;
-const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful and polite AI-assistant. Please write concisely and use the language the user uses.'; 
+const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful, honest and polite AI-assistant. Please write concisely and use the language the user uses.'; 
 const now = () => new Date().toISOString();
 
 async function buildContext(userId, userMessage, imageUrl = null) {
@@ -72,7 +72,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
     const messages = await buildContext(userId, userText, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.5-flash', messages, temperature: 0.5
+      model: 'google/gemma-3-27b-it:free', messages, temperature: 0.5
     });
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
