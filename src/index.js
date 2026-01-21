@@ -58,9 +58,7 @@ const messages = [{ role: 'system', content: systemPrompt }];
       { type: 'text', text: userMessage || "What is depicted here?" },
       { 
         type: 'image_url', 
-        image_url: { 
-          url: imageUrl
-        } 
+        image_url: imageUrl
       }
     ]
   });
