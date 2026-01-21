@@ -73,7 +73,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
     const messages = await buildContext(userId, userText, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: VISION_MODEL,
+      model: "mistralai/mistral-small-3.1-24b-instruct:free",
       messages,
       temperature: 0.5
     });
