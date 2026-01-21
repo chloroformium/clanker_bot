@@ -50,9 +50,15 @@ const messages = [{ role: 'system', content: systemPrompt }];
       }
     }
   }
+
   if (imageUrl) {
-    const text = `${userMessage || "What is depicted in this photo?"}\nImage URL: ${imageUrl}`;
-    messages.push({ role: 'user', content: text });
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: userMessage || "What is depicted here?" },
+        {  type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    });
   } else {
     messages.push({ role: 'user', content: userMessage });
   }
