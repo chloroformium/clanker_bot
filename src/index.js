@@ -33,7 +33,7 @@ async function buildContext(userId, userMessage, imageUrl = null) {
   let rows = await getUserHistory(userId, CONTEXT_LIMIT);
 rows = rows.reverse();
 
-const messages = [{ role: 'system', content: systemPrompt }];
+const messages = [{ role: 'user', content: systemPrompt }];
   let totalChars = systemPrompt.length;
 
   for (const row of rows) {
@@ -58,7 +58,9 @@ const messages = [{ role: 'system', content: systemPrompt }];
       { type: 'text', text: userMessage || "What is depicted here?" },
       { 
         type: 'image_url', 
-        image_url: imageUrl
+        image_url: { 
+          url: imageUrl
+        } 
       }
     ]
   });
