@@ -30,29 +30,27 @@ const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful and polite AI-
 const now = () => new Date().toISOString();
 
 async function buildContext(userId, userMessage, imageUrl = null) {
-  const rows = await getUserHistory(userId, CONTEXT_LIMIT);
+  let rows = await getUserHistory(userId, CONTEXT_LIMIT);
+rows = rows.reverse();
 
-  const messages = [{ role: 'system', content: systemPrompt }];
-  let totalChars = (systemPrompt || '').length;
+const messages = [{ role: 'system', content: systemPrompt }];
+  let totalChars = systemPrompt.length;
 
   for (const row of rows) {
-    if (row.text) {
-      const len = row.text.length;
-      if (totalChars + len > CHARS_LIMIT) break;
-      messages.push({ role: 'user', content: row.text });
-      totalChars += len;
+    if (row.text && row.text !== "[Photo]") {
+      if (totalChars + row.text.length < CHARS_LIMIT) {
+        messages.push({ role: 'user', content: row.text });
+        totalChars += row.text.length;
+      }
     }
-
-    const botText = row.response;
-    if (botText) {
-      const len = botText.length;
-      if (totalChars + len > CHARS_LIMIT) break;
-      messages.push({ role: 'assistant', content: botText });
-      totalChars += len;
+    if (row.response && row.response !== "no answer") {
+      if (totalChars + row.response.length < CHARS_LIMIT) {
+        messages.push({ role: 'assistant', content: row.response });
+        totalChars += row.response.length;
+      }
     }
   }
-
- if (imageUrl) {
+  if (imageUrl) {
     messages.push({
       role: 'user',
       content: [
@@ -63,6 +61,7 @@ async function buildContext(userId, userMessage, imageUrl = null) {
   } else {
     messages.push({ role: 'user', content: userMessage });
   }
+
   return messages;
 }
 
