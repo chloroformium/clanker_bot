@@ -38,3 +38,12 @@ export async function clearUserHistory(userId) {
   return sql`DELETE FROM messages WHERE user_id = ${userId};`;
 }
 
+export async function clearInactiveHistory() {
+  const deletedRows = await sql`
+    DELETE FROM messages 
+    WHERE created_at < NOW() - INTERVAL '5 days'
+    RETURNING user_id;
+  `;
+  return [...new Set(deletedRows.map(row => row.user_id))];
+}
+

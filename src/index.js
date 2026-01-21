@@ -4,7 +4,8 @@ dotenv.config();
 import express from "express";
 import { Telegraf } from "telegraf";
 import OpenAI from "openai";
-import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory} from './db.js';
+import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory} from './db.js';
+import cron from "node-cron";
 
 const port = process.env.PORT || 3000;
 
@@ -23,12 +24,12 @@ const openrouter = new OpenAI({
 
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
-const CONTEXT_LIMIT = 50;
+const CONTEXT_LIMIT = 30;
 const CHARS_LIMIT = 9999;
 const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful and polite AI-assistant. Please write concisely and use the language the user uses.'; 
 const now = () => new Date().toISOString();
 
-async function buildContext(userId, userMessage) {
+async function buildContext(userId, userMessage, imageUrl = null) {
   const rows = await getUserHistory(userId, CONTEXT_LIMIT);
 
   const messages = [{ role: 'system', content: systemPrompt }];
@@ -51,9 +52,43 @@ async function buildContext(userId, userMessage) {
     }
   }
 
-  messages.push({ role: 'user', content: userMessage });
-
+ if (imageUrl) {
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: userMessage || "What is depicted in this photo?" },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    });
+  } else {
+    messages.push({ role: 'user', content: userMessage });
+  }
   return messages;
+}
+
+async function processAiResponse(ctx, userId, userText, imageUrl = null) {
+  try {
+    await saveUserMessage({ userId, text: userText || "[Photo]" });
+
+    const messages = await buildContext(userId, userText, imageUrl);
+
+    const completion = await openrouter.chat.completions.create({
+      model: VISION_MODEL,
+      messages,
+      temperature: 0.5
+    });
+
+    const botReply = completion?.choices?.[0]?.message?.content || "no answer";
+
+    await saveBotResponse({ userId, response: botReply });
+    
+    console.log(`[${now()}] answer sent (${ctx.from.username || userId})`);
+    await ctx.reply(botReply);
+
+  } catch (err) {
+    console.error(`[${now()}] processing error, `, err);
+    await ctx.reply('processing error');
+  }
 }
 
 bot.start(ctx => ctx.reply("Hey! Just ask any question and I'll answer using AI model"));
@@ -85,53 +120,37 @@ bot.hears('clear', async ctx => {
   }
 });
 
-bot.on('text', async ctx => {
+cron.schedule('0 0 * * *', async () => {
+    const result = await clearInactiveHistory(5);
+});
+
+bot.on('text', async ctx => {await processAiResponse(ctx, String(ctx.from.id), ctx.message.text);
+});
+
+bot.on('photo', async ctx => {
   try {
-    const userMessage = ctx.message.text;
-    const userId = String(ctx.from.id);
-
-    await saveUserMessage({ userId, text: userMessage });
-
-    const messages = await buildContext(userId, userMessage);
-
-    const completion = await openrouter.chat.completions.create({
-      model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-nano-9b-v2:free',
-      messages,
-      temperature: 0.5
-    });
-
-    let botReply = '';
-    const choice = completion?.choices?.[0];
-    if (choice) {
-      const content = choice.message?.content;
-      if (Array.isArray(content)) {
-        botReply = content.map(c => typeof c === 'string' ? c : (c?.text || '')).join('');
-      } else if (typeof content === 'string') {
-        botReply = content;
-      } else if (content && typeof content === 'object') {
-        botReply = content.text || '';
-      }
-      if (!botReply) botReply = choice.text || '';
-    }
-
-    if (!botReply) {
-      await ctx.reply('An empty answer was returned');
-      return;
-    }
-
-    await saveBotResponse({ userId, response: botReply });
-
-    console.log(`[${now()}] sending the answer (${ctx.from.username || ctx.from.id})`);
-    await ctx.reply(botReply);
-
+    const fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+    const caption = ctx.message.caption; 
+    await processAiResponse(ctx, String(ctx.from.id), caption, fileLink.href);
   } catch (err) {
-    console.error(`[${now()}] request processing error`, err);
-    try { await ctx.reply('request processing error'); } catch {}
+    await ctx.reply("cannot read the message");
   }
 });
 
-const webhookPath = '/webhook';
+cron.schedule('0 0 * * *', async () => {
+        const deletedUserIds = await clearInactiveHistory(); 
+        for (const userId of deletedUserIds) {
+            try {
+                await bot.telegram.sendMessage (userId, "user was inactive for 5 days, context cleared");
+                await new Promise(resolve => setTimeout(resolve, 60));
+            } catch (error) {
+                console.error(`cannot send message to ${userId}:`, error.message);
+            }
+        }
+});
 
+const webhookPath = '/webhook';
 
 app.use(bot.webhookCallback('/api/webhook'));
 app.get('/', (_, res) => res.send('bot is running via webhook'));
