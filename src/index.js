@@ -32,8 +32,8 @@ let currentModel = 'google/gemma-3-27b-it:free';
 
 const modelsMap = {
   'Xiaomi: MiMo-V2-Flash (free) 🤖': 'xiaomi/mimo-v2-flash:free',
-  'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖': 'nvidia/nemotron-3-30b:free',
-  'DeepSeek: R1 0528 (free) 🤖': 'deepseek/r1-0528:free',
+  'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖': 'nvidia/nemotron-3-nano-30b-a3b:free',
+  'DeepSeek: R1 0528 (free) 🤖': 'deepseek/deepseek-r1-0528:free',
   'Google: Gemma 3 27B (free) 🤖': 'google/gemma-3-27b-it:free'
 };
 
@@ -164,10 +164,6 @@ bot.hears('clear', async ctx => {
   } catch {
     await ctx.reply('context cleaning error');
   }
-});
-
-cron.schedule('0 0 * * *', async () => {
-    const result = await clearInactiveHistory(5);
 });
 
 bot.on('text', async ctx => {await processAiResponse(ctx, String(ctx.from.id), ctx.message.text);
