@@ -47,3 +47,19 @@ export async function clearInactiveHistory() {
   return [...new Set(deletedRows.map(row => row.user_id))];
 }
 
+export async function setUserModel(userId, modelId) {
+  return sql`
+    INSERT INTO users (user_id, selected_model)
+    VALUES (${userId}, ${modelId})
+    ON CONFLICT (user_id) 
+    DO UPDATE SET selected_model = ${modelId}
+    RETURNING *;
+  `;
+}
+
+export async function getUserModel(userId) {
+  const [user] = await sql`
+    SELECT selected_model FROM users WHERE user_id = ${userId}
+  `;
+  return user ? user.selected_model : 'google/gemma-3-27b-it:free';
+}

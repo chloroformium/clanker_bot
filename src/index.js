@@ -4,7 +4,7 @@ dotenv.config();
 import express from "express";
 import { Telegraf } from "telegraf";
 import OpenAI from "openai";
-import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory} from './db.js';
+import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory, setUserModel, getUserModel} from './db.js';
 import cron from "node-cron";
 
 const port = process.env.PORT || 3000;
@@ -28,6 +28,14 @@ const CONTEXT_LIMIT = 30;
 const CHARS_LIMIT = 9999;
 const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful, honest and polite AI-assistant. Please write concisely and use the language the user uses.'; 
 const now = () => new Date().toISOString();
+let currentModel = 'google/gemma-3-27b-it:free';
+
+const modelsMap = {
+  'Xiaomi: MiMo-V2-Flash (free) 🤖': 'xiaomi/mimo-v2-flash:free',
+  'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖': 'nvidia/nemotron-3-30b:free',
+  'DeepSeek: R1 0528 (free) 🤖': 'deepseek/r1-0528:free',
+  'Google: Gemma 3 27B (free) 🤖': 'google/gemma-3-27b-it:free'
+};
 
 async function buildContext(userId, userMessage, imageUrl = null) {
   let rows = await getUserHistory(userId, CONTEXT_LIMIT);
@@ -75,10 +83,11 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
+    const userModel = await getUserModel(userId);
     const messages = await buildContext(userId, userText, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: 'google/gemma-3-27b-it:free', messages, temperature: 0.5
+      model: userModel , messages, temperature: 0.5
     });
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
@@ -94,7 +103,39 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   }
 }
 
-bot.start(ctx => ctx.reply("Hey! Just ask any question and I'll answer using AI model"));
+async function chooseModel (ctx) {
+  ctx.reply('Who you want to chat with?', {
+    reply_markup: {
+      keyboard: [
+        [{ text: 'Xiaomi: MiMo-V2-Flash (free) 🤖' }],
+        [{ text: 'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖' }],
+        [{ text: 'DeepSeek: R1 0528 (free) 🤖' }],
+        [{ text: 'Google: Gemma 3 27B (free) 🤖' }]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    }
+  });
+}
+bot.hears(Object.keys(modelsMap), async (ctx) => {
+  const userId = String(ctx.from.id);
+  const selectedText = ctx.message.text;
+  const modelId = modelsMap[selectedText];
+
+  try {
+    await setUserModel(userId, modelId);
+    await ctx.reply(`${selectedText} was set as current`);
+  } catch (err) {
+    await ctx.reply('failed to set this model');
+  }
+});
+
+bot.command('model', async ctx => {
+  await chooseModel(ctx); 
+});
+
+
+bot.start(ctx => ctx.reply("Hey! Use '/model' command to choose AI-model you want to chat with "));
 bot.help(ctx => ctx.reply("Just write a message, the answer won't take too long"));
 
 bot.command('clear', async ctx => {
@@ -107,10 +148,12 @@ bot.command('clear', async ctx => {
   }
 });
 
+
 bot.telegram.setMyCommands([
   { command: 'start', description: 'start bot' },
   { command: 'help', description: 'help' },
   { command: 'clear', description: 'clear context' },
+  { command: 'model', description: 'choose model'}
 ]);
 
 bot.hears('clear', async ctx => {
