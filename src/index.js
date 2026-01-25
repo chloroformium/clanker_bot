@@ -84,7 +84,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
-   bot.telegram.sendChatAction(ctx.chat.id, "typing...");
+   await ctx.sendChatAction("typing");
 
     const userModel = await getUserModel(userId);
     const messages = await buildContext(userId, userText, imageUrl);
