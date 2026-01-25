@@ -84,6 +84,8 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
+   bot.telegram.sendChatAction(ctx.chat.id, "typing...");
+
     const userModel = await getUserModel(userId);
     const messages = await buildContext(userId, userText, imageUrl);
 
@@ -98,6 +100,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
     await saveBotResponse({ userId, response: botReply });
     
     console.log(`[${now()}] answer sent (${ctx.from.username || userId})`);
+
     
     try {
       await ctx.reply(v2BotReply, {parse_mode: 'MarkdownV2'});
