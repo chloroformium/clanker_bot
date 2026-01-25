@@ -116,6 +116,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   }
 }
 
+
 async function chooseModel (ctx) {
   ctx.reply('Who you want to chat with?', {
     reply_markup: {
