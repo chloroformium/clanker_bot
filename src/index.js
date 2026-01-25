@@ -6,6 +6,7 @@ import { Telegraf } from "telegraf";
 import OpenAI from "openai";
 import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory, setUserModel, getUserModel} from './db.js';
 import cron from "node-cron";
+import telegramifyMarkdown from 'telegramify-markdown';
 
 const port = process.env.PORT || 3000;
 
@@ -92,10 +93,19 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
 
+    const v2BotReply = telegramifyMarkdown (botReply);
+
     await saveBotResponse({ userId, response: botReply });
     
     console.log(`[${now()}] answer sent (${ctx.from.username || userId})`);
-    await ctx.reply(botReply);
+    
+    try {
+      await ctx.reply(v2BotReply, {parse_mode: 'MarkdownV2'});
+    }
+    catch (e){
+       await ctx.reply(botReply);
+    }
+
 
   } catch (err) {
     console.error(`[${now()}] processing error, `, err);
