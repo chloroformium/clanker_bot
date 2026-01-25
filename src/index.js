@@ -23,7 +23,7 @@ const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN, { telegram: { webhookReply: false } });
 
 const CONTEXT_LIMIT = 30;
 const CHARS_LIMIT = 9999;
