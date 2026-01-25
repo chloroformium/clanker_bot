@@ -84,7 +84,7 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
-   await ctx.sendChatAction("typing");
+   ctx.sendChatAction("typing");
 
     const userModel = await getUserModel(userId);
     const messages = await buildContext(userId, userText, imageUrl);
