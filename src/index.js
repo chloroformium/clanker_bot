@@ -84,7 +84,7 @@ const messages = [{ role: 'user', content: currentSystemPrompt }];
 async function processAiResponse(ctx, userId, userText, imageUrl = null) {
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
-
+    
    ctx.sendChatAction("typing");
 
     const userModel = (await getUserModel(userId)) || 'google/gemma-3-27b-it:free';

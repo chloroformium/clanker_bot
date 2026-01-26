@@ -77,7 +77,7 @@ export async function setUserCharacter(userId, characterId) {
     INSERT INTO users (user_id, selected_character)
     VALUES (${userId}, ${characterId})
     ON CONFLICT (user_id) 
-    DO UPDATE SET selected_model = ${modelId}
+    DO UPDATE SET selected_character = ${characterId}
     RETURNING *;
   `;
 }
