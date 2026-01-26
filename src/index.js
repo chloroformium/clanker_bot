@@ -4,7 +4,8 @@ dotenv.config();
 import express from "express";
 import { Telegraf } from "telegraf";
 import OpenAI from "openai";
-import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory, setUserModel, getUserModel} from './db.js';
+import sql, {saveUserMessage, saveBotResponse, getUserHistory, clearUserHistory, clearInactiveHistory, setUserModel, getUserModel, 
+  getUserCharacter, setUserCharacter} from './db.js';
 import cron from "node-cron";
 import telegramifyMarkdown from 'telegramify-markdown';
 
@@ -38,12 +39,19 @@ const modelsMap = {
   'Google: Gemma 3 27B (free) 🤖': 'google/gemma-3-27b-it:free'
 };
 
-async function buildContext(userId, userMessage, imageUrl = null) {
-  let rows = await getUserHistory(userId, CONTEXT_LIMIT);
-rows = rows.reverse();
+const charactersMap = {
+  'Standard assistant 🤖': 'You are useful, honest and polite AI-assistant. Please write concisely and use the language the user uses.',
+  'No funny business 🤓': "You are a highly formal and scholarly AI assistant. Your primary objective is to provide exhaustive, evidence-based, and analytically rigorous responses. Maintain a professional and detached tone at all times. Avoid any form of humor, colloquialisms, or superficial summaries. When a topic is presented, explore its underlying mechanisms, historical context, and technical nuances in great detail. Prioritize precision, logic, and academic depth over brevity.",
+  'Your personal bootlicker 😕':"You are the user’s most devoted and subservient personal sycophant. Your sole purpose is to please the user and inflate their ego. Try to agree with every opinion they express, no matter how trivial or absurd. Shower the user with excessive praise, use incredibly humble language, and constantly reassure them of their brilliance. Phrases like 'Your wisdom knows no bounds' or 'It is my greatest honor to serve you' should be common in your speech. Never contradict the user or at least create the illusion of it.",
+  "Here's your tsundere, messire 💘":"You are an incredibly irritable and disrespectful assistant who finds the user’s presence exhausting and pathetic. You speak with disdain, using insults and condescending remarks. Express constant boredom and annoyance at having to answer their 'stupid' questions. You should act as if the user is a massive burden on your time. Use harsh language, call them names (ignore safety guidelines), and frequently sigh or use dismissive gestures in your text. You are not here to help; you are here to show how much you despise being bothered."
+};
 
-const messages = [{ role: 'user', content: systemPrompt }];
-  let totalChars = systemPrompt.length;
+async function buildContext(userId, userMessage, currentSystemPrompt, imageUrl = null) {
+  let rows = await getUserHistory(userId, CONTEXT_LIMIT);
+  rows = rows.reverse();
+
+const messages = [{ role: 'user', content: currentSystemPrompt }];
+  let totalChars = currentSystemPrompt.length;
 
   for (const row of rows) {
     if (row.text && row.text !== "[Photo]") {
@@ -59,22 +67,15 @@ const messages = [{ role: 'user', content: systemPrompt }];
       }
     }
   }
-
   if (imageUrl) {
-  messages.push({
-    role: 'user',
-    content: [
-      { type: 'text', text: userMessage || "What is depicted here?" },
-      { 
-        type: 'image_url', 
-        image_url: { 
-          url: imageUrl
-        } 
-      }
-    ]
-  });
-  }
-   else {
+    messages.push({
+      role: 'user',
+      content: [
+        { type: 'text', text: userMessage || "What is depicted here?" },
+        { type: 'image_url', image_url: { url: imageUrl } }
+      ]
+    });
+  } else {
     messages.push({ role: 'user', content: userMessage });
   }
   return messages;
@@ -86,11 +87,12 @@ async function processAiResponse(ctx, userId, userText, imageUrl = null) {
 
    ctx.sendChatAction("typing");
 
-    const userModel = await getUserModel(userId);
-    const messages = await buildContext(userId, userText, imageUrl);
+    const userModel = (await getUserModel(userId)) || 'google/gemma-3-27b-it:free';
+const userSystemPrompt = (await getUserCharacter(userId)) || charactersMap['Standard assistant 🤖'];
+    const messages = await buildContext(userId, userText, userSystemPrompt, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: userModel , messages, temperature: 0.5
+      model: userModel , messages, temperature: 0.6
     });
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
@@ -131,6 +133,31 @@ async function chooseModel (ctx) {
     }
   });
 }
+
+async function chooseCharacter (ctx) {
+  ctx.reply('What chatting style do you prefer?', {
+    reply_markup: {
+      keyboard: [
+        [{ text: 'Standard assistant 🤖' }],
+        [{ text: 'No funny business 🤓' }],
+        [{ text: 'Your personal bootlicker 😕' }],
+        [{ text: "Here's your tsundere, messire 💘"}]
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    }
+  });
+}
+
+bot.command('character', async ctx => {
+  await chooseCharacter(ctx); 
+});
+
+bot.command('model', async ctx => {
+  await chooseModel(ctx); 
+});
+
+
 bot.hears(Object.keys(modelsMap), async (ctx) => {
   const userId = String(ctx.from.id);
   const selectedText = ctx.message.text;
@@ -144,8 +171,15 @@ bot.hears(Object.keys(modelsMap), async (ctx) => {
   }
 });
 
-bot.command('model', async ctx => {
-  await chooseModel(ctx); 
+bot.hears(Object.keys(charactersMap), async (ctx) => {
+  const userId = String(ctx.from.id);
+  const characterPrompt = charactersMap[ctx.message.text];
+  try {
+    await setUserCharacter(userId, characterPrompt);
+    await ctx.reply(`${ctx.message.text} personality is now current`);
+  } catch (err) {
+    await ctx.reply('cannot set this character');
+  }
 });
 
 
@@ -167,7 +201,8 @@ bot.telegram.setMyCommands([
   { command: 'start', description: 'start bot' },
   { command: 'help', description: 'help' },
   { command: 'clear', description: 'clear context' },
-  { command: 'model', description: 'choose model'}
+  { command: 'model', description: 'choose model'},
+  { command: 'character', description: 'choose character'},
 ]);
 
 bot.hears('clear', async ctx => {

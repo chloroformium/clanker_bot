@@ -57,9 +57,27 @@ export async function setUserModel(userId, modelId) {
   `;
 }
 
+
 export async function getUserModel(userId) {
   const [user] = await sql`
     SELECT selected_model FROM users WHERE user_id = ${userId}
   `;
   return user ? user.selected_model : 'google/gemma-3-27b-it:free';
+}
+
+export async function getUserCharacter(userId) {
+  const [user] = await sql`
+    SELECT selected_character FROM users WHERE user_id = ${userId}
+  `;
+  return user ? user.selected_character : 'You are useful, honest and polite AI-assistant. Please write concisely and use the language the user uses.';
+}
+
+export async function setUserCharacter(userId, characterId) {
+  return sql`
+    INSERT INTO users (user_id, selected_character)
+    VALUES (${userId}, ${characterId})
+    ON CONFLICT (user_id) 
+    DO UPDATE SET selected_model = ${modelId}
+    RETURNING *;
+  `;
 }
