@@ -5,5 +5,11 @@
       "source": "/api/webhook",
       "destination": "/api/webhook.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

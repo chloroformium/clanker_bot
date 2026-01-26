@@ -194,16 +194,26 @@ bot.on('photo', async ctx => {
   }
 });
 
-cron.schedule('0 0 * * *', async () => {
-        const deletedUserIds = await clearInactiveHistory(); 
-        for (const userId of deletedUserIds) {
-            try {
-                await bot.telegram.sendMessage (userId, "user was inactive for 5 days, context cleared");
-                await new Promise(resolve => setTimeout(resolve, 60));
-            } catch (error) {
-                console.error(`cannot send message to ${userId}:`, error.message);
-            }
-        }
+app.get('/api/cron', async (req, res) => {
+
+  const authHeader = req.headers['authorization'];
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).send('Unauthorized');
+  }
+  try {
+    const deletedUserIds = await clearInactiveHistory(); 
+    for (const userId of deletedUserIds) {
+      try {
+        await bot.telegram.sendMessage(userId, "user was inactive for 5 days, context cleared");
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (e) {
+        console.error(`cannot send message to ${userId}:`, e.message);
+      }
+    }
+    res.status(200).json({ status: 'inactive chats were cleaned', cleared: deletedUserIds.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const webhookPath = '/webhook';
