@@ -81,7 +81,13 @@ const messages = [{ role: 'user', content: currentSystemPrompt }];
   return messages;
 }
 
+const processingUsers = new Set();
 async function processAiResponse(ctx, userId, userText, imageUrl = null) {
+
+if (processingUsers.has(userId)) {
+    return ctx.reply("please wait, still thinking");
+  }
+
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
@@ -92,7 +98,8 @@ const userSystemPrompt = (await getUserCharacter(userId)) || charactersMap['Stan
     const messages = await buildContext(userId, userText, userSystemPrompt, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
-      model: userModel , messages, temperature: 0.6
+      model: userModel , messages, temperature: 0.6,
+      frequency_penalty: 0.4, presence_penalty: 0.2
     });
 
     const botReply = completion?.choices?.[0]?.message?.content || "no answer";
