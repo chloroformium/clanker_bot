@@ -258,9 +258,54 @@ app.get('/api/cron', async (req, res) => {
   }
 });
 
-const webhookPath = '/webhook';
 
 app.use(bot.webhookCallback('/api/webhook'));
+
 app.get('/', (_, res) => res.send('bot is running via webhook'));
 
-export default app;
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily inactive chat cleanup...');
+  try {
+    const deletedUserIds = await clearInactiveHistory(); 
+    for (const userId of deletedUserIds) {
+      try {
+        await bot.telegram.sendMessage(userId, "user was inactive for 5 days, context cleared");
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (e) {
+        console.error(`cannot send message to ${userId}:`, e.message);
+      }
+    }
+    console.log(`Cleanup complete. Cleared ${deletedUserIds.length} chats.`);
+  } catch (err) {
+    console.error('Error in cron cleanup:', err);
+  }
+});
+
+app.get('/api/cron', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).send('Unauthorized');
+  }
+  try {
+    const deletedUserIds = await clearInactiveHistory(); 
+    res.status(200).json({ status: 'inactive chats were cleaned', cleared: deletedUserIds.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.listen(port, async () => {
+  console.log(`Server is running on port ${port}`);
+  
+  if (process.env.DOMAIN) {
+    try {
+      const webhookUrl = `${process.env.DOMAIN}/api/webhook`;
+      await bot.telegram.setWebhook(webhookUrl);
+      console.log(`Webhook successfully set to: ${webhookUrl}`);
+    } catch (err) {
+      console.error('Failed to set webhook:', err);
+    }
+  } else {
+    console.warn('WARNING: DOMAIN env variable is not set. Webhook was not registered.');
+  }
+});
