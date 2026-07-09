@@ -14,7 +14,6 @@ const port = process.env.PORT || 3000;
 process.on('uncaughtException', e => console.error('uncaughtException', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
-console.log("USING DB URL:", process.env.SUPABASE_CONNECTION_STRING);
 
 const app = express();
 app.use(express.json());
