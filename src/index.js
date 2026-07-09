@@ -33,10 +33,10 @@ const now = () => new Date().toISOString();
 let currentModel = 'google/gemma-3-27b-it:free';
 
 const modelsMap = {
-  'Meta: Llama 3.3 70B Instruct (free) 🤖': 'meta-llama/llama-3.3-70b-instruct:free',
+  'Auto model selection (openrouter/free) 🤖': 'openrouter/free',
   'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖': 'nvidia/nemotron-3-nano-30b-a3b:free',
-  'DeepSeek: R1 0528 (free) 🤖': 'deepseek/deepseek-r1-0528:free',
-  'Google: Gemma 3 27B (free) 🤖': 'google/gemma-3-27b-it:free'
+  'NVIDIA: Nemotron 3 Ultra (free) 🤖' : 'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'Google: Gemma 4 31B (free) 🤖' : 'google/gemma-4-31b-it:free'
 };
 
 const charactersMap = {
@@ -130,10 +130,10 @@ async function chooseModel (ctx) {
   ctx.reply('Who you want to chat with?', {
     reply_markup: {
       keyboard: [
-        [{ text: 'Meta: Llama 3.3 70B Instruct (free) 🤖' }],
+        [{ text: 'Auto model selection (openrouter/free) 🤖' }],
         [{ text: 'NVIDIA: Nemotron 3 Nano 30B A3B (free) 🤖' }],
-        [{ text: 'DeepSeek: R1 0528 (free) 🤖' }],
-        [{ text: 'Google: Gemma 3 27B (free) 🤖' }]
+        [{ text: 'NVIDIA: Nemotron 3 Ultra (free) 🤖' }],
+        [{ text: 'Google: Gemma 4 31B (free) 🤖' }]
       ],
       resize_keyboard: true,
       one_time_keyboard: true
