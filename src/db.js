@@ -6,8 +6,6 @@ const sql = postgres( process.env.SUPABASE_CONNECTION_STRING );
 
 export default sql;
 
-console.log("SUPABASE_CSTRING =", process.env.SUPABASE_CONNECTION_STRING);
-
 export async function saveUserMessage({ userId, text }) {
   return sql`
     INSERT INTO messages (user_id, text)
