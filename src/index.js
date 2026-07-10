@@ -11,6 +11,26 @@ import telegramifyMarkdown from 'telegramify-markdown';
 
 const port = process.env.PORT || 3000;
 
+async function sendAdminAlert(message) {
+  const adminId = process.env.ADMIN_TELEGRAM_ID;
+  if (!adminId) return;
+  try {
+    await bot.telegram.sendMessage(adminId, `System Alert:\n${message}`, { parse_mode: 'Markdown' });
+  } catch (err) {
+    console.error("Failed to send admin alert:", err.message);
+  }
+}
+
+process.on('uncaughtException', async (e) => {
+  console.error('uncaughtException', e);
+  await sendAdminAlert(`Critical uncaughtException: ${e.message}\nStack: ${e.stack}`);
+});
+
+process.on('unhandledRejection', async (e) => {
+  console.error('unhandledRejection', e);
+  await sendAdminAlert(`Critical unhandledRejection: ${e.message || e}`);
+});
+
 process.on('uncaughtException', e => console.error('uncaughtException', e));
 process.on('unhandledRejection', e => console.error('unhandledRejection', e));
 
@@ -293,6 +313,7 @@ app.get('/api/cron', async (req, res) => {
 });
 
 app.listen(port, async () => {
+ app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);
   
   if (process.env.DOMAIN) {
@@ -300,10 +321,14 @@ app.listen(port, async () => {
       const webhookUrl = `${process.env.DOMAIN}/api/webhook`;
       await bot.telegram.setWebhook(webhookUrl);
       console.log(`Webhook successfully set to: ${webhookUrl}`);
+      
+      await sendAdminAlert(`Bot started successfully on port ${port}, webhook verified`);
     } catch (err) {
-      console.error('Failed to set webhook:', err);
+      console.error('failed to set webhook:', err);
+      await sendAdminAlert(`Failed webhook configuring upon startup: ${err.message}`);
     }
   } else {
-    console.warn('WARNING: DOMAIN env variable is not set. Webhook was not registered.');
+    console.warn('WARNING: DOMAIN env variable is not set, webhook was not registered');
   }
+});
 });
