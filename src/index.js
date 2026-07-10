@@ -12,7 +12,7 @@ import telegramifyMarkdown from 'telegramify-markdown';
 const port = process.env.PORT || 3000;
 
 async function sendAdminAlert(message) {
-  const adminId = process.env.ADMIN_TELEGRAM_ID;
+  const adminId = process.env.ADMIN_TG_ID;
   if (!adminId) return;
   try {
     await bot.telegram.sendMessage(adminId, `System Alert:\n${message}`, { parse_mode: 'Markdown' });
