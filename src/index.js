@@ -11,6 +11,8 @@ import telegramifyMarkdown from 'telegramify-markdown';
 
 const port = process.env.PORT || 3000;
 
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN, { telegram: { webhookReply: false } });
+
 async function sendAdminAlert(message) {
   const adminId = process.env.ADMIN_TG_ID;
   if (!adminId) return;
@@ -42,13 +44,11 @@ const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
 });
 
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN, { telegram: { webhookReply: false } });
-
 const CONTEXT_LIMIT = 30;
 const CHARS_LIMIT = 9999;
 const systemPrompt = process.env.SYSTEM_PROMPT || 'You are useful, honest and polite AI-assistant. Please write concisely and use the language the user uses.'; 
 const now = () => new Date().toISOString();
-let currentModel = 'google/gemma-3-27b-it:free';
+let currentModel = 'openrouter/free';
 
 const modelsMap = {
   'Auto model selection (openrouter/free) 🤖': 'openrouter/free',
@@ -106,13 +106,15 @@ if (processingUsers.has(userId)) {
     return ctx.reply("please wait, still thinking");
   }
 
+  processingUsers.add(userId);
+
   try {
     await saveUserMessage({ userId, text: userText || "[Photo]" });
 
    ctx.sendChatAction("typing");
 
-    const userModel = (await getUserModel(userId)) || 'google/gemma-3-27b-it:free';
-const userSystemPrompt = (await getUserCharacter(userId)) || charactersMap['Standard assistant 🤖'];
+    const userModel = (await getUserModel(userId)) || 'openrouter/free';
+    const userSystemPrompt = (await getUserCharacter(userId)) || charactersMap['Standard assistant 🤖'];
     const messages = await buildContext(userId, userText, userSystemPrompt, imageUrl);
 
     const completion = await openrouter.chat.completions.create({
@@ -140,6 +142,9 @@ const userSystemPrompt = (await getUserCharacter(userId)) || charactersMap['Stan
   } catch (err) {
     console.error(`[${now()}] processing error, `, err);
     await ctx.reply('processing error');
+  }
+  finally {
+    processingUsers.delete(userId);
   }
 }
 
@@ -313,7 +318,6 @@ app.get('/api/cron', async (req, res) => {
 });
 
 app.listen(port, async () => {
- app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);
   
   if (process.env.DOMAIN) {
@@ -330,5 +334,4 @@ app.listen(port, async () => {
   } else {
     console.warn('WARNING: DOMAIN env variable is not set, webhook was not registered');
   }
-});
 });
